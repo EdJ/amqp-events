@@ -1,0 +1,28 @@
+{
+  "name": "ampq-events",
+  "version": "0.0.1",
+  "description": "An EventEmitter metaphor for amqplib.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EdJ/amqp-events.git"
+  },
+  "keywords": [
+    "amqplib"
+  ],
+  "author": "Ed J",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/EdJ/amqp-events/issues"
+  },
+  "devDependencies": {
+    "chai": "~1.8.1",
+    "proxyquire": "~0.5.1"
+  },
+  "dependencies": {
+    "amqplib": "~0.1.0"
+  }
+}
