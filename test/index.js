@@ -7,6 +7,20 @@ var fulfilledPromise = function (result) {
     });
 };
 
+var getFakeAmqplib = function (fakeChannel) {
+    var fakeConnection = {
+        createChannel: function () {
+            return fulfilledPromise(fakeChannel);
+        }
+    };
+
+    return {
+        connect: function () {
+            return fulfilledPromise(fakeConnection);
+        }
+    };
+};
+
 describe('amqp-events', function () {
     var getEvents;
 
@@ -70,14 +84,14 @@ describe('amqp-events', function () {
     describe('AmqpEmitter', function () {
         describe('Emitting', function () {
             it('should emit events on the specified exchange.', function (done) {
-                var expectedQueueName = 'some queue';
+                var expectedEventName = 'some queue';
                 var expectedMessage = {
                     someData: 'test'
                 };
 
                 var fakeChannel = {
-                    assertExchange: function (queueName, type, options) {
-                        queueName.should.equal(expectedQueueName);
+                    assertExchange: function (exchangeName, type, options) {
+                        exchangeName.should.equal(expectedEventName);
                         type.should.equal('fanout');
                         options.should.eql({
                             durable: false
@@ -85,8 +99,8 @@ describe('amqp-events', function () {
 
                         return fulfilledPromise();
                     },
-                    publish: function (queueName, routingKey, buffer) {
-                        queueName.should.equal(expectedQueueName);
+                    publish: function (exchangeName, routingKey, buffer) {
+                        exchangeName.should.equal(expectedEventName);
                         routingKey.should.equal('');
 
                         var stringified = JSON.stringify(expectedMessage);
@@ -97,25 +111,7 @@ describe('amqp-events', function () {
                     }
                 };
 
-                var fakeConnection = {
-                    createChannel: function () {
-                        return {
-                            then: function (callback) {
-                                callback(fakeChannel);
-                            }
-                        };
-                    }
-                };
-
-                var fakeAmqplib = {
-                    connect: function () {
-                        return {
-                            then: function (callback) {
-                                callback(fakeConnection);
-                            }
-                        };
-                    }
-                };
+                var fakeAmqplib = getFakeAmqplib(fakeChannel);
 
                 var events = getEvents({
                     amqplib: fakeAmqplib
@@ -125,13 +121,87 @@ describe('amqp-events', function () {
 
                 var emitter = new AmqpEmitter();
 
-                emitter.emit(expectedQueueName, expectedMessage);
+                emitter.emit(expectedEventName, expectedMessage);
+            });
+
+            it('should not open two channels.', function (done) {
+                var fakeChannel = {
+                    assertExchange: function () {
+                        return fulfilledPromise();
+                    },
+                    publish: function () {
+                        return fulfilledPromise();
+                    }
+                };
+
+                var fakeConnection = {
+                    createChannel: function () {
+                        this.createChannel = function () {
+                            done('Should not open another channel.');
+                        };
+
+                        return fulfilledPromise(fakeChannel);
+                    }
+                };
+
+                var fakeAmqplib = {
+                    connect: function () {
+                        return fulfilledPromise(fakeConnection);
+                    }
+                };
+
+                var events = getEvents({
+                    amqplib: fakeAmqplib
+                });
+
+                var AmqpEmitter = events.connect('amqp://sometestserver');
+
+                var emitter = new AmqpEmitter();
+
+                var expectedEvent = 'an event';
+
+                emitter.emit(expectedEvent, 'a message').then(function () {
+                    return emitter.emit(expectedEvent, 'some other message');
+                }).then(function () {
+                    done();
+                });
+            });
+
+            it('should not re-assert a known exchange.', function (done) {
+                var fakeChannel = {
+                    assertExchange: function () {
+                        this.assertExchange = function () {
+                            done('Should not re-assert the exchange.');
+                        };
+
+                        return fulfilledPromise();
+                    },
+                    publish: function () {
+                        return fulfilledPromise();
+                    }
+                };
+
+                var events = getEvents({
+                    amqplib: getFakeAmqplib(fakeChannel)
+                });
+
+                var AmqpEmitter = events.connect('amqp://sometestserver');
+
+                var emitter = new AmqpEmitter();
+
+                var expectedEvent = 'some queue';
+
+                emitter.emit(expectedEvent, 'a message').then(function () {
+                    return emitter.emit(expectedEvent, 'some other message');
+                }).then(function () {
+                    done();
+                });
             });
         });
 
         describe('Receiving', function () {
             it('should bind a queue to the relevant exchange and a handler to that queue.', function (done) {
-                var expectedEventName = 'some queue';
+                var expectedEventName = 'some event';
                 var expectedResult = 'a message!';
 
                 var messageToSend = {
@@ -188,25 +258,7 @@ describe('amqp-events', function () {
                     }
                 };
 
-                var fakeConnection = {
-                    createChannel: function () {
-                        return {
-                            then: function (callback) {
-                                callback(fakeChannel);
-                            }
-                        };
-                    }
-                };
-
-                var fakeAmqplib = {
-                    connect: function () {
-                        return {
-                            then: function (callback) {
-                                callback(fakeConnection);
-                            }
-                        };
-                    }
-                };
+                var fakeAmqplib = getFakeAmqplib(fakeChannel);
 
                 var events = getEvents({
                     amqplib: fakeAmqplib
@@ -223,6 +275,56 @@ describe('amqp-events', function () {
                 };
 
                 emitter.on(expectedEventName, callback);
+            });
+
+            it('should not re-assert known exchanges, or re-bind known queues.', function (done) {
+                var fakeChannel = {
+                    assertQueue: function () {
+                        this.assertExchange = function () {
+                            done('Should not re-assert the queue.');
+                        };
+
+                        return fulfilledPromise();
+                    },
+                    assertExchange: function () {
+                        this.assertExchange = function () {
+                            done('Should not re-assert the exchange.');
+                        };
+
+                        return fulfilledPromise(null);
+                    },
+                    bindQueue: function () {
+                        this.bindQueue = function () {
+                            done('Should not re-bind the queue.');
+                        };
+
+                        return fulfilledPromise(null);
+                    },
+                    consume: function () {}
+                };
+
+                var events = getEvents({
+                    amqplib: getFakeAmqplib(fakeChannel)
+                });
+
+                var AmqpEmitter = events.connect({
+                    url: 'test',
+                    consumerPrefix: 'a preset prefix'
+                });
+
+                var emitter = new AmqpEmitter();
+
+                var expectedQueueName = 'some queue';
+
+                emitter.on(expectedQueueName, function () {});
+
+                setTimeout(function () {
+                    emitter.on(expectedQueueName, function () {});
+                }, 50);
+
+                setTimeout(function () {
+                    done();
+                }, 100);
             });
         });
     });
