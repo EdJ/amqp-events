@@ -1,14 +1,11 @@
 ## amqp-events
 An EventEmitter metaphor for amqplib.
+[![Build Status](https://travis-ci.org/EdJ/amqp-events.png)](https://travis-ci.org/EdJ/amqp-events)
 
 ## Overview
 
-Coming soon...
-
-Catch me on twitter (http://twitter.com/sigmoidfx) for more info!
+A facade over amqplib that allows you to treat your AMQP server as if it were an EventEmitter.
 
 ## License
 
-Copyright (c) 2013 Ed J <ed@ed-j.co.uk>
-
-Do what you want with the code; No warranty of any kind is given assuming its use.
+Copyright (c) 2013 Ed J <ed@ed-j.co.uk> @sigmoidfx
