@@ -20,7 +20,8 @@
   },
   "devDependencies": {
     "chai": "~1.8.1",
-    "proxyquire": "~0.5.1"
+    "proxyquire": "~0.5.1",
+    "mocha": "~1.15.1"
   },
   "dependencies": {
     "amqplib": "~0.1.0",
