@@ -63,7 +63,7 @@ describe('amqp-events', function () {
 
             events.connect('amqp://somewhere');
 
-            events.close();
+            events.disconnect();
         });
     });
 
@@ -131,7 +131,7 @@ describe('amqp-events', function () {
 
         describe('Receiving', function () {
             it('should bind a queue to the relevant exchange and a handler to that queue.', function (done) {
-                var expectedQueueName = 'some queue';
+                var expectedEventName = 'some queue';
                 var expectedResult = 'a message!';
 
                 var messageToSend = {
@@ -160,12 +160,12 @@ describe('amqp-events', function () {
                     bindQueue: function (queueName, exchangeName, routingKey) {
                         routingKey.should.equal('');
                         queueName.should.equal(assertedQueue.queue);
-                        routingKey.should.equal('');
+                        exchangeName.should.equal(expectedEventName);
 
                         return fulfilledPromise(null);
                     },
                     assertExchange: function (queueName, type, options) {
-                        queueName.should.equal(expectedQueueName);
+                        queueName.should.equal(expectedEventName);
                         type.should.equal('fanout');
                         options.should.eql({
                             durable: false
@@ -222,7 +222,7 @@ describe('amqp-events', function () {
                     performedCallback = true;
                 };
 
-                emitter.on(expectedQueueName, callback);
+                emitter.on(expectedEventName, callback);
             });
         });
     });

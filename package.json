@@ -1,6 +1,6 @@
 {
   "name": "ampq-events",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "An EventEmitter metaphor for amqplib.",
   "main": "index.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "proxyquire": "~0.5.1"
   },
   "dependencies": {
-    "amqplib": "~0.1.0"
+    "amqplib": "~0.1.0",
+    "when": "~2.7.0"
   }
 }
