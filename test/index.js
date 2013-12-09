@@ -277,6 +277,120 @@ describe('amqp-events', function () {
                 emitter.on(expectedEventName, callback);
             });
 
+            it('should wait for a returned promise to ack.', function (done) {
+                var expectedResult = 'a message!';
+
+                var messageToSend = {
+                    content: new Buffer(JSON.stringify(expectedResult))
+                };
+
+                var performedCallback = false;
+
+                var fakeChannel = {
+                    assertQueue: function () {
+                        return fulfilledPromise({
+                            queue: 'some generated value'
+                        });
+                    },
+                    bindQueue: function () {
+                        return fulfilledPromise();
+                    },
+                    assertExchange: function () {
+                        return fulfilledPromise();
+                    },
+                    consume: function (queueName, callback) {
+                        callback(messageToSend);
+                    },
+                    ack: function (message) {
+                        message.should.equal(messageToSend);
+
+                        performedCallback.should.equal(true);
+
+                        done();
+                    }
+                };
+
+                var fakeAmqplib = getFakeAmqplib(fakeChannel);
+
+                var events = getEvents({
+                    amqplib: fakeAmqplib
+                });
+
+                var AmqpEmitter = events.connect('amqp://somewhere');
+
+                var emitter = new AmqpEmitter();
+
+                var callback = function (result) {
+                    result.should.equal(expectedResult);
+
+                    return when.promise(function (resolve) {
+                        setImmediate(function () {
+                            performedCallback = true;
+
+                            resolve();
+                        });
+                    });
+                };
+
+                emitter.on('some event', callback);
+            });
+
+            it('should provide a callback for acks.', function (done) {
+                var expectedResult = 'a message!';
+
+                var messageToSend = {
+                    content: new Buffer(JSON.stringify(expectedResult))
+                };
+
+                var performedCallback = false;
+
+                var fakeChannel = {
+                    assertQueue: function () {
+                        return fulfilledPromise({
+                            queue: 'some generated value'
+                        });
+                    },
+                    bindQueue: function () {
+                        return fulfilledPromise();
+                    },
+                    assertExchange: function () {
+                        return fulfilledPromise();
+                    },
+                    consume: function (queueName, callback) {
+                        callback(messageToSend);
+                    },
+                    ack: function (message) {
+                        message.should.equal(messageToSend);
+
+                        performedCallback.should.equal(true);
+
+                        done();
+                    }
+                };
+
+                var fakeAmqplib = getFakeAmqplib(fakeChannel);
+
+                var events = getEvents({
+                    amqplib: fakeAmqplib
+                });
+
+                var AmqpEmitter = events.connect('amqp://somewhere');
+
+                var emitter = new AmqpEmitter();
+
+                var callback = function (result, callback) {
+                    result.should.equal(expectedResult);
+
+                    setImmediate(function () {
+                        performedCallback = true;
+
+                        callback();
+                    });
+                };
+
+                emitter.on('some event', callback);
+            });
+
             it('should not re-assert known exchanges, or re-bind known queues.', function (done) {
                 var fakeChannel = {
                     assertQueue: function () {
@@ -307,10 +421,7 @@ describe('amqp-events', function () {
                     amqplib: getFakeAmqplib(fakeChannel)
                 });
 
-                var AmqpEmitter = events.connect({
-                    url: 'test',
-                    consumerPrefix: 'a preset prefix'
-                });
+                var AmqpEmitter = events.connect('amqp://some test server');
 
                 var emitter = new AmqpEmitter();
 

@@ -11,6 +11,7 @@
         "describe": true,
         "it": true,
         "beforeEach": true,
-        "Buffer": true
+        "Buffer": true,
+        "setTimeout": true
     }
 }
