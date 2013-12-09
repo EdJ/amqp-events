@@ -329,6 +329,63 @@ describe('amqp-events', function () {
                 emitter.on('some event', callback);
             });
 
+            it('should nack on a failed promise.', function (done) {
+                var expectedResult = 'a message!';
+
+                var messageToSend = {
+                    content: new Buffer(JSON.stringify(expectedResult))
+                };
+
+                var performedCallback = false;
+
+                var fakeChannel = {
+                    assertQueue: function () {
+                        return fulfillPromise({
+                            queue: 'some generated value'
+                        });
+                    },
+                    bindQueue: fulfillPromise,
+                    assertExchange: fulfillPromise,
+                    consume: function (queueName, callback) {
+                        callback(messageToSend);
+                    },
+                    ack: function () {
+                        done(Error('SHould have nacked.'));
+                    },
+                    nack: function (message) {
+                        message.should.equal(messageToSend);
+
+                        performedCallback.should.equal(true);
+
+                        done();
+                    }
+                };
+
+                var fakeAmqplib = getFakeAmqplib(fakeChannel);
+
+                var events = getEvents({
+                    amqplib: fakeAmqplib
+                });
+
+                var AmqpEmitter = events.connect('amqp://somewhere');
+
+                var emitter = new AmqpEmitter();
+
+                var callback = function (result) {
+                    result.should.equal(expectedResult);
+
+                    return when.promise(function (resolve, reject) {
+                        setTimeout(function () {
+                            performedCallback = true;
+
+                            reject();
+                        }, 1);
+                    });
+                };
+
+                emitter.on('some event', callback);
+            });
+
             it('should provide a callback for acks.', function (done) {
                 var expectedResult = 'a message!';
 
@@ -375,6 +432,61 @@ describe('amqp-events', function () {
                         performedCallback = true;
 
                         callback();
+                    }, 1);
+                };
+
+                emitter.on('some event', callback);
+            });
+
+            it('should nack when the callback is presented with an error.', function (done) {
+                var expectedResult = 'a message!';
+
+                var messageToSend = {
+                    content: new Buffer(JSON.stringify(expectedResult))
+                };
+
+                var performedCallback = false;
+
+                var fakeChannel = {
+                    assertQueue: function () {
+                        return fulfillPromise({
+                            queue: 'some generated value'
+                        });
+                    },
+                    bindQueue: fulfillPromise,
+                    assertExchange: fulfillPromise,
+                    consume: function (queueName, callback) {
+                        callback(messageToSend);
+                    },
+                    ack: function () {
+                        done(Error('Should not have called ack.'));
+                    },
+                    nack: function (message) {
+                        message.should.equal(messageToSend);
+
+                        performedCallback.should.equal(true);
+
+                        done();
+                    }
+                };
+
+                var fakeAmqplib = getFakeAmqplib(fakeChannel);
+
+                var events = getEvents({
+                    amqplib: fakeAmqplib
+                });
+
+                var AmqpEmitter = events.connect('amqp://somewhere');
+
+                var emitter = new AmqpEmitter();
+
+                var callback = function (result, callback) {
+                    result.should.equal(expectedResult);
+
+                    setTimeout(function () {
+                        performedCallback = true;
+
+                        callback('Some error or other');
                     }, 1);
                 };
 
